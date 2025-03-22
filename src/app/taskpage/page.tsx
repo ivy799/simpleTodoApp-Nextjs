@@ -13,8 +13,23 @@ import {
 	ResponsiveContainer,
 	Tooltip,
 } from "recharts";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
-import { CalendarIcon, ListTodo, PlusCircle } from "lucide-react";
+import {
+	CalendarIcon,
+	ListTodo,
+	PlusCircle,
+	Paperclip,
+	MoreVertical,
+	Pencil,
+	Trash2,
+	TriangleAlert,
+} from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import TaskForm from "@/components/TaskForm";
 import { toast, Toaster } from "sonner";
@@ -24,6 +39,12 @@ interface Task {
 	title: string;
 	description: string;
 	created_at: string;
+	attachments?: {
+		id: string;
+		fileName: string;
+		fileUrl: string;
+		fileType: string;
+	}[];
 }
 
 export default function HomePage() {
@@ -177,37 +198,81 @@ export default function HomePage() {
 							) : (
 								<div className="space-y-4">
 									{tasks.map((task) => (
-										<Card key={task.id} className="border-l-4 border-l-primary">
-											<CardHeader className="py-3">
-												<CardTitle className="text-base font-medium">
-													{task.title}
-												</CardTitle>
-												<p className="text-xs text-muted-foreground">
-													{format(new Date(task.created_at), "dd MMM yyyy")}
-												</p>
-											</CardHeader>
-											<CardContent className="py-2">
-												<p className="text-sm">{task.description}</p>
-												<div className="mt-3 flex space-x-2">
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={() => {
-															setSelectedTask(task);
-															setShowForm(true);
-														}}
-													>
-														Edit
-													</Button>
-													<Button
-														variant="destructive"
-														size="sm"
-														onClick={() => handleDelete(task.id)}
-													>
-														Delete
-													</Button>
+										<Card key={task.id} className="mb-2">
+											<CardHeader className="py-3 space-y-0">
+												<div className="flex justify-between items-center">
+													<div>
+														<CardTitle className="text-base font-medium">
+															{task.title}
+														</CardTitle>
+														<p className="text-xs text-muted-foreground">
+															{format(new Date(task.created_at), "dd MMM yyyy")}
+														</p>
+													</div>
+
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<Button
+																variant="ghost"
+																size="sm"
+																className="h-8 w-8 p-0"
+															>
+																<MoreVertical className="h-4 w-4" />
+															</Button>
+														</DropdownMenuTrigger>
+
+														<DropdownMenuContent align="end" className="w-64">
+															<div className="p-2 space-y-3">
+																{/* Deskripsi */}
+																{task.description && (
+																	<p className="text-sm text-muted-foreground">
+																		{task.description}
+																	</p>
+																)}
+
+																{/* Attachments */}
+																{task.attachments?.map((attachment) => (
+																	<a
+																		key={attachment.id}
+																		href={attachment.fileUrl}
+																		target="_blank"
+																		rel="noopener noreferrer"
+																		className="flex items-center text-sm text-blue-600 hover:underline"
+																	>
+																		<Paperclip className="mr-2 h-4 w-4" />
+																		{attachment.fileName}
+																	</a>
+																))}
+
+																{/* Action Buttons */}
+																<div className="flex flex-col space-y-2">
+																	<Button
+																		variant="outline"
+																		size="sm"
+																		className="w-full"
+																		onClick={() => {
+																			setSelectedTask(task);
+																			setShowForm(true);
+																		}}
+																	>
+																		<Pencil className="mr-2 h-4 w-4" />
+																		Edit
+																	</Button>
+																	<Button
+																		variant="destructive"
+																		size="sm"
+																		className="w-full"
+																		onClick={() => handleDelete(task.id)}
+																	>
+																		<Trash2 className="mr-2 h-4 w-4" />
+																		Delete
+																	</Button>
+																</div>
+															</div>
+														</DropdownMenuContent>
+													</DropdownMenu>
 												</div>
-											</CardContent>
+											</CardHeader>
 										</Card>
 									))}
 								</div>
@@ -263,55 +328,77 @@ export default function HomePage() {
 							</CardContent>
 						</Card>
 
-						{/* Section 3: Calendar */}
-						<Card className="h-full flex flex-col">
-							<CardHeader>
-								<CardTitle className="flex items-center">
-									<CalendarIcon className="mr-2 h-5 w-5" /> Task Calendar
-								</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<Tabs defaultValue="calendar">
-									<TabsList className="mb-4">
-										<TabsTrigger value="calendar">Calendar</TabsTrigger>
-										<TabsTrigger value="tasks">Tasks for Date</TabsTrigger>
-									</TabsList>
-									<TabsContent value="calendar" className="space-y-4">
-										<Calendar
-											mode="single"
-											selected={date}
-											onSelect={setDate}
-											className="rounded-md border mx-auto"
-										/>
-									</TabsContent>
-									<TabsContent value="tasks" className="space-y-4">
-										<div className="text-sm text-muted-foreground mb-2">
-											{date ? format(date, "MMMM d, yyyy") : "Select a date"}
-										</div>
-										<div className="space-y-3">
-											{getTasksForDate(date).length > 0 ? (
-												getTasksForDate(date).map((task) => (
-													<Card key={task.id}>
-														<CardHeader className="py-3">
-															<CardTitle className="text-base">
-																{task.title}
-															</CardTitle>
-														</CardHeader>
-														<CardContent className="py-2">
-															<p className="text-sm">{task.description}</p>
-														</CardContent>
-													</Card>
-												))
-											) : (
-												<p className="text-muted-foreground text-center py-4">
-													No tasks for this date
-												</p>
-											)}
-										</div>
-									</TabsContent>
-								</Tabs>
-							</CardContent>
-						</Card>
+						{/* Section 3: Calendar & Development Notice */}
+						<div className="h-full flex flex-col md:flex-row gap-6">
+							{/* Calendar Section */}
+							<Card className="flex-1">
+								<CardHeader>
+									<CardTitle className="flex items-center">
+										<CalendarIcon className="mr-2 h-5 w-5" /> Task Calendar
+									</CardTitle>
+								</CardHeader>
+								<CardContent>
+									<Tabs defaultValue="calendar">
+										<TabsList className="mb-4">
+											<TabsTrigger value="calendar">Calendar</TabsTrigger>
+											<TabsTrigger value="tasks">Tasks for Date</TabsTrigger>
+										</TabsList>
+										<TabsContent value="calendar" className="space-y-4">
+											<Calendar
+												mode="single"
+												selected={date}
+												onSelect={setDate}
+												className="rounded-md border mx-auto"
+											/>
+										</TabsContent>
+										<TabsContent value="tasks" className="space-y-4">
+											<div className="text-sm text-muted-foreground mb-2">
+												{date ? format(date, "MMMM d, yyyy") : "Select a date"}
+											</div>
+											<div className="space-y-3">
+												{getTasksForDate(date).length > 0 ? (
+													getTasksForDate(date).map((task) => (
+														<Card key={task.id}>
+															<CardHeader className="py-3">
+																<CardTitle className="text-base">
+																	{task.title}
+																</CardTitle>
+															</CardHeader>
+															<CardContent className="py-2">
+																<p className="text-sm">{task.description}</p>
+															</CardContent>
+														</Card>
+													))
+												) : (
+													<p className="text-muted-foreground text-center py-4">
+														No tasks for this date
+													</p>
+												)}
+											</div>
+										</TabsContent>
+									</Tabs>
+								</CardContent>
+							</Card>
+
+							{/* Development Notice Section */}
+							<Card className="border-yellow-500/20 bg-yellow-500/10 flex-1">
+								<CardHeader className="py-3">
+									<div className="flex items-center gap-2">
+										<TriangleAlert className="h-5 w-5 text-yellow-500" />
+										<CardTitle className="text-yellow-500">
+											Development Notice
+										</CardTitle>
+									</div>
+								</CardHeader>
+								<CardContent>
+									<p className="text-sm text-yellow-500/80">
+										This application is currently in active development.
+										Features may change without prior notice. Thank you for your
+										understanding.
+									</p>
+								</CardContent>
+							</Card>
+						</div>
 					</div>
 				</div>
 

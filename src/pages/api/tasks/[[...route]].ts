@@ -245,19 +245,60 @@ App.post("/", authMiddleware, async (c) => {
 
 App.get("/", authMiddleware, async (c) => {
 	try {
-		const user = c.get("user");
+	  const user = c.get("user");
+	  
+	  const allTasks = await db
+		.select({
+		  id: tasks.id,
+		  title: tasks.title,
+		  description: tasks.description,
+		  created_at: tasks.created_at,
+		  attachments: {
+			id: attachments.id,
+			fileName: attachments.fileName,
+			fileUrl: attachments.fileUrl,
+			fileType: attachments.fileType
+		  }
+		})
+		.from(tasks)
+		.leftJoin(attachments, eq(tasks.id, attachments.taskId))
+		.where(eq(tasks.user_id, user.id));
+  
+	  // Group attachments by task
+	  type TaskWithAttachments = {
+		id: string;
+		title: string;
+		description: string | null;
+		created_at: Date | null;
+		attachments: {
+		  id: string;
+		  fileName: string;
+		  fileUrl: string;
+		  fileType: string;
+		}[];
+	  };
 
-		const allTasks = await db
-			.select()
-			.from(tasks)
-			.where(eq(tasks.user_id, user.id));
-
-		return c.json({ success: true, data: allTasks });
+	  const groupedTasks = allTasks.reduce<TaskWithAttachments[]>((acc, task) => {
+		const existing = acc.find(t => t.id === task.id);
+		if (existing) {
+		  if (task.attachments?.id) {
+			existing.attachments.push(task.attachments);
+		  }
+		} else {
+		  acc.push({
+			...task,
+			attachments: task.attachments?.id ? [task.attachments] : []
+		  });
+		}
+		return acc;
+	  }, []);
+  
+	  return c.json({ success: true, data: groupedTasks });
 	} catch (error) {
-		console.error("🚨 Error GET /api/tasks:", error);
-		return c.json({ success: false, message: "Gagal mengambil tasks" }, 500);
+	  console.error("Error GET /api/tasks:", error);
+	  return c.json({ success: false, message: "Gagal mengambil tasks" }, 500);
 	}
-});
+  });
 
 App.get("/:id", authMiddleware, async (c) => {
 	try {
