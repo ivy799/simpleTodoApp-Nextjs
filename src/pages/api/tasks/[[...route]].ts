@@ -2,25 +2,29 @@ import { Hono } from "hono";
 import { handle } from "@hono/node-server/vercel";
 import type { PageConfig } from "next";
 import { db } from "../../../db";
-import type { SignOptions } from "jsonwebtoken";
-import { authMiddleware } from "../../../middleware/auth"; // Import authMiddleware
-import jwt from "jsonwebtoken"; // Import jsonwebtoken
-import { tasks, attachments } from "../../../db/schema"; // Pastikan import schema attachments
+import { authMiddleware } from "../../../middleware/auth"; 
+import jwt from "jsonwebtoken"; 
+import { tasks, attachments, users } from "../../../db/schema"; 
 import { eq, and } from "drizzle-orm";
 import { minioClient } from "../../../lib/minioClient";
-import { users } from "../../../db/schema";
 import bcrypt from "bcrypt";
+
+
 
 export const config: PageConfig = {
 	runtime: "nodejs",
 	api: {
-		bodyParser: false, // Tetap nonaktifkan untuk handle form-data
+		bodyParser: false, 
 	},
 };
 
+
+
 const App = new Hono().basePath("/api/tasks");
 
-App.post("/",authMiddleware, async (c) => {
+
+
+App.post("/", authMiddleware, async (c) => {
 	try {
 		const formData = await c.req.formData();
 
@@ -57,7 +61,6 @@ App.post("/",authMiddleware, async (c) => {
 					{ "Content-Type": file.type },
 				);
 
-				// Simpan data attachment
 				await tx.insert(attachments).values({
 					taskId: task.id,
 					fileName,
@@ -74,7 +77,7 @@ App.post("/",authMiddleware, async (c) => {
 				success: true,
 				data: {
 					...newTask,
-					attachment: !!file, 
+					attachment: !!file,
 				},
 			},
 			201,
@@ -90,7 +93,6 @@ App.get("/:id", authMiddleware, async (c) => {
 		const user = c.get("user");
 		const taskId = c.req.param("id");
 
-		// Query dengan filter user_id
 		const [task] = await db
 			.select()
 			.from(tasks)
@@ -119,10 +121,10 @@ App.get("/:id", authMiddleware, async (c) => {
 	}
 });
 
-App.put("/:id", async (c) => {
+App.put("/:id",authMiddleware, async (c) => {
 	try {
-		const id = c.req.param("id"); // Gunakan UUID
-		const { title, description: desc } = await c.req.parseBody();
+		const id = c.req.param("id");
+		const { title, description: desc } = await c.req.json();
 		const description = typeof desc === "string" ? desc : "";
 		if (typeof title !== "string") {
 			return c.json({ success: false, message: "Invalid title" }, 400);
@@ -143,45 +145,67 @@ App.put("/:id", async (c) => {
 	}
 });
 
-App.delete("/:id", async (c) => {
-	try {
-		const id = c.req.param("id"); // Gunakan UUID
-		const [deleteTask] = await db
-			.delete(tasks)
-			.where(eq(tasks.id, id))
-			.returning();
+App.delete("/:id", authMiddleware, async (c) => {
+    try {
+        const user = c.get("user"); // Ambil data user dari middleware
+        const taskId = c.req.param("id");
 
-		return deleteTask
-			? c.json({ success: true, data: deleteTask }, 200)
-			: c.json({ success: false, message: "Task tidak ditemukan" }, 404);
-	} catch (error) {
-		console.error("🚨 Error DELETE /api/tasks:", error);
-		return c.json({ success: false, message: "Gagal delete task" }, 500);
-	}
+        // 1. Hapus attachment terkait terlebih dahulu
+        await db.delete(attachments).where(eq(attachments.taskId, taskId));
+
+        // 2. Hapus task dengan memeriksa kepemilikan user
+        const [deletedTask] = await db
+            .delete(tasks)
+            .where(
+                and(
+                    eq(tasks.id, taskId),
+                    eq(tasks.user_id, user.id) // Hanya hapus task milik user
+                )
+            )
+            .returning();
+
+        if (!deletedTask) {
+            return c.json(
+                { 
+                    success: false, 
+                    message: "Task tidak ditemukan atau tidak memiliki akses" 
+                },
+                404
+            );
+        }
+
+        return c.json({ success: true, data: deletedTask }, 200);
+
+    } catch (error) {
+        console.error("🚨 Error DELETE /api/tasks:", error);
+        return c.json(
+            { 
+                success: false, 
+                message: "Gagal delete task",
+                error: error instanceof Error ? error.message : "Unknown error" 
+            },
+            500
+        );
+    }
 });
 
 const generateToken = (
 	payload: object,
-	options?: jwt.SignOptions & { expiresIn?: string | number }
-  ) => {
+	options?: jwt.SignOptions & { expiresIn?: string | number },
+) => {
 	if (!process.env.JWT_SECRET) {
-	  throw new Error("JWT_SECRET environment variable is not defined");
+		throw new Error("JWT_SECRET environment variable is not defined");
 	}
-  
-	return jwt.sign(
-	  payload,
-	  process.env.JWT_SECRET,
-	  {
+
+	return jwt.sign(payload, process.env.JWT_SECRET, {
 		...options,
 		expiresIn: options?.expiresIn || "1h", // Default 1 jam
-	  }
-	);
-  };
+	});
+};
 
-  App.post("/register", async (c) => {
+App.post("/register", async (c) => {
     const { email, password, name } = await c.req.json();
 
-    // Validasi input
     if (!email || !password) {
         return c.json(
             {
@@ -193,7 +217,6 @@ const generateToken = (
     }
 
     try {
-        // Validasi format email
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return c.json(
                 {
@@ -204,11 +227,10 @@ const generateToken = (
             );
         }
 
-        // Cek email sudah terdaftar
         const existingUser = await db
             .select()
             .from(users)
-            .where(eq(users.email, email.toLowerCase())); // Case-insensitive
+            .where(eq(users.email, email.toLowerCase()));
 
         if (existingUser.length > 0) {
             return c.json(
@@ -220,58 +242,30 @@ const generateToken = (
             );
         }
 
-        // Hash password dengan cost factor 12
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Simpan user baru
         const [newUser] = await db
             .insert(users)
             .values({
-                email: email.toLowerCase(), // Normalisasi email
+                email: email.toLowerCase(),
                 password: hashedPassword,
                 name,
             })
             .returning();
 
-        // Generate access token
-        const accessToken = generateToken(
-            {
-                sub: newUser.id, // Standard JWT subject claim
-                email: newUser.email,
-            },
-            {
-                expiresIn: "15m", // Access token berlaku 15 menit
-            }
-        );
-
-        // Generate refresh token
-        const refreshToken = generateToken(
-            {
-                sub: newUser.id,
-            },
-            {
-                expiresIn: 60 * 60 * 24 * 7, // Refresh token berlaku 7 hari (dalam detik)
-            }
-        );
-
+        // HAPUS GENERATE TOKEN DI REGISTER
         return c.json(
             {
                 success: true,
                 data: {
                     id: newUser.id,
                     email: newUser.email,
-                    name: newUser.name,
-                    tokens: {
-                        access_token: accessToken,
-                        refresh_token: refreshToken,
-                        token_type: "Bearer",
-                        expires_in: 900, // 15 menit dalam detik
-                        refresh_expires_in: 60 * 60 * 24 * 7, // 7 hari dalam detik
-                    },
+                    name: newUser.name
                 },
             },
             201,
         );
+
     } catch (error) {
         console.error("🚨 Error registrasi:", error);
         return c.json(
@@ -289,7 +283,6 @@ App.post("/login", async (c) => {
 	const { email, password } = await c.req.json();
 
 	try {
-		// Validasi input
 		if (!email || !password) {
 			return c.json(
 				{ success: false, message: "Email dan password wajib diisi" },
@@ -300,10 +293,9 @@ App.post("/login", async (c) => {
 		const [user] = await db
 			.select()
 			.from(users)
-			.where(eq(users.email, email.toLowerCase())); // Case-insensitive
+			.where(eq(users.email, email.toLowerCase()));
 
 		if (!user) {
-			// Delay untuk prevent timing attack
 			await bcrypt.compare(
 				password,
 				"$2b$12$fakehashforpreventingtimingattack",
@@ -323,7 +315,6 @@ App.post("/login", async (c) => {
 			);
 		}
 
-		// Generate token dengan refresh token
 		const accessToken = generateToken(
 			{ sub: user.id, email: user.email },
 			{ expiresIn: "15m" },
