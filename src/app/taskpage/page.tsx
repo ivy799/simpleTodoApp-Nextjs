@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { v4 as uuidv4 } from "uuid";
+
 import {
 	Bar,
 	BarChart,
@@ -186,7 +188,7 @@ export default function HomePage() {
 							{loading ? (
 								<div className="space-y-4">
 									{[...Array(3)].map(() => (
-										<Card key={crypto.randomUUID()} className="animate-pulse">
+										<Card key={uuidv4()} className="animate-pulse">
 											<div className="h-24 bg-muted/50 rounded-lg" />
 										</Card>
 									))}
@@ -280,7 +282,7 @@ export default function HomePage() {
 						</CardContent>
 					</Card>
 
-					<div className="grid grid-rows-2 gap-6 h-full">
+					<div className="grid grid-rows-[1fr_auto] gap-6 h-full">
 						{/* Section 2: Chart */}
 						<Card className="h-full flex flex-col">
 							<CardHeader>
@@ -296,7 +298,7 @@ export default function HomePage() {
 										<ResponsiveContainer width="100%" height="100%">
 											<BarChart
 												data={monthlyData}
-												margin={{ top: 10, right: 30, left: 0, bottom: 20 }}
+												margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
 											>
 												<XAxis
 													dataKey="name"
@@ -334,15 +336,11 @@ export default function HomePage() {
 							<Card className="flex-1">
 								<CardHeader>
 									<CardTitle className="flex items-center">
-										<CalendarIcon className="mr-2 h-5 w-5" /> Task Calendar
+										<CalendarIcon className="mr-2 h-5 w-5" />Calendar
 									</CardTitle>
 								</CardHeader>
 								<CardContent>
 									<Tabs defaultValue="calendar">
-										<TabsList className="mb-4">
-											<TabsTrigger value="calendar">Calendar</TabsTrigger>
-											<TabsTrigger value="tasks">Tasks for Date</TabsTrigger>
-										</TabsList>
 										<TabsContent value="calendar" className="space-y-4">
 											<Calendar
 												mode="single"
