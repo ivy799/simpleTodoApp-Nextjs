@@ -231,7 +231,11 @@ App.post("/", authMiddleware, async (c) => {
 			{
 				success: true,
 				data: {
-					...newTask,
+					id: newTask.id,
+					created_at: newTask.created_at?.toISOString() || null,
+					title: newTask.title,
+					description: newTask.description,
+					user_id: newTask.user_id,
 					attachment: !!file,
 				},
 			},
@@ -293,7 +297,13 @@ App.get("/", authMiddleware, async (c) => {
 		return acc;
 	  }, []);
   
-	  return c.json({ success: true, data: groupedTasks });
+	  return c.json({
+		success: true,
+		data: groupedTasks.map(task => ({
+		  ...task,
+		  created_at: task.created_at ? task.created_at.toISOString() : null,
+		})),
+	  });
 	} catch (error) {
 	  console.error("Error GET /api/tasks:", error);
 	  return c.json({ success: false, message: "Gagal mengambil tasks" }, 500);
@@ -320,7 +330,13 @@ App.get("/:id", authMiddleware, async (c) => {
 			);
 		}
 
-		return c.json({ success: true, data: task }, 200);
+		return c.json({ 
+			success: true, 
+			data: { 
+				...task, 
+				created_at: task.created_at ? task.created_at.toISOString() : null 
+			} 
+		}, 200);
 	} catch (error) {
 		console.error("🚨 Error GET /api/tasks/:id:", error);
 		return c.json(
@@ -415,7 +431,10 @@ App.put("/:id", authMiddleware, async (c) => {
 
 		return c.json({
 			success: true,
-			data: updatedTask,
+			data: {
+				...updatedTask,
+				created_at: updatedTask.created_at?.toISOString() || null,
+			},
 			message: "Task berhasil diupdate",
 		});
 	} catch (error) {
@@ -460,7 +479,13 @@ App.delete("/:id", authMiddleware, async (c) => {
 			);
 		}
 
-		return c.json({ success: true, data: deletedTask }, 200);
+		return c.json({
+			success: true,
+			data: {
+				...deletedTask,
+				created_at: deletedTask.created_at?.toISOString() || null,
+			},
+		}, 200);
 	} catch (error) {
 		console.error("🚨 Error DELETE /api/tasks:", error);
 		return c.json(

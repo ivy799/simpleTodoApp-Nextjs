@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { v4 as uuidv4 } from "uuid";
 
 import {
@@ -18,7 +18,6 @@ import {
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
@@ -119,7 +118,7 @@ export default function HomePage() {
 			];
 			setMonthlyData(sampleData);
 		}
-	}, [fetchTasks]);
+	}, [fetchTasks, monthlyData.length]);
 
 	const handleDelete = async (taskId: string) => {
 		try {
@@ -152,13 +151,6 @@ export default function HomePage() {
 				taskDate.getFullYear() === date.getFullYear()
 			);
 		});
-	};
-
-	const chartConfig = {
-		tasks: {
-			label: "Tasks",
-			color: "hsl(var(--primary))",
-		},
 	};
 
 	return (

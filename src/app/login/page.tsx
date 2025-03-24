@@ -11,6 +11,7 @@ import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import Loader from "@/components/loader"
 import { Mail, Lock, ArrowRight } from "lucide-react"
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter()
@@ -77,10 +78,11 @@ export default function LoginPage() {
         <CardHeader className="space-y-2 text-center">
           <div className="flex justify-center mb-4 relative">
             <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center p-4">
-              <img
+              <Image 
                 src="https://www.logggos.club/logos/hivecell.svg"
                 alt="logo"
                 className="w-full h-full object-contain"
+                width={100} height={100}
               />
             </div>
           </div>

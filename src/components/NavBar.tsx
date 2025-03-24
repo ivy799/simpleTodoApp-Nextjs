@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { LogOut, UserPlus, LogIn, Menu } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export default function Navbar() {
   const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     setIsAuthenticated(localStorage.getItem("access_token") !== null)
@@ -28,10 +28,11 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center p-1.5">
-              <img
+              <Image 
                 src="https://www.logggos.club/logos/hivecell.svg"
                 alt="logo"
                 className="w-full h-full object-contain"
+                width={100} height={100}
               />
             </div>
             <span className="font-semibold text-lg hidden sm:inline-block">Hivecell</span>
